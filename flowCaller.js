@@ -4,72 +4,116 @@
  * Supports: 
  * - Single and multiple records
  * - Confirmation dialog
- * - Environment variables for flow URLs and strings
+ * - Environment variables for flow URLs
  * - Progress indicators
+ * - Configurable localized strings
  */
 
 var Abakion = Abakion || {};
 
 Abakion.FlowCaller = {
-    // Cache for loaded strings to avoid repeated API calls
-    _stringsCache: null,
-    
-    // Fallback strings if environment variable fails to load
-    _defaultStrings: {
-        noRecordsSelected: "Please select at least one record.",
-        envVarNotFound: "Environment variable not found: {0}",
-        envVarRetrievalFailed: "Environment variable retrieval failed: {0}",
-        processing: "Processing {0} record(s)",
-		completed: "Completed",
-        defaultSuccessMessage: "{0} record(s) processed successfully",
-        recordsFailed: "{0} record(s) failed",
-        confirmTitle: "Confirm Action",
-        confirmButton: "Yes",
-        cancelButton: "Cancel",
-		flowUrlNotFound: "Flow URL not found: {0}",
-        flowExecutionFailed: "Flow execution failed for record {0}: HTTP {1}",
-        networkError: "Network error for record {0}",
-        timelineRefreshWarning: "Timeline refresh failed",
-		notSupported: "Not supported",
-		onlySingleRecord: "This function only support single records from form.",
-		configurationError: "Configuration Error",
-		success: "Success",
-		error: "error",
-		errorWhenCallingFlow: "Error when calling flow: {0}",
-		errorWhenRetrievingVariable: "Error when retrieving environment variable: {0}",
-		flowCompletedSuccessfully: "Flow completed successfully!",
-		flowStartedSuccessfully: "Flow started successfully!",
-		sendingDataToFlow: "Sending data to flow..."
+    /**
+     * Configuration constant for localized strings
+     * Modify these values to customize messages for your organization or language
+     */
+    LOCALIZED_STRINGS: {
+        // English (Default)
+        "en": {
+            noRecordsSelected: "Please select at least one record.",
+            envVarNotFound: "Environment variable not found: {0}",
+            envVarRetrievalFailed: "Environment variable retrieval failed: {0}",
+            processing: "Processing {0} record(s)",
+            completed: "Completed",
+            defaultSuccessMessage: "{0} record(s) processed successfully",
+            recordsFailed: "{0} record(s) failed",
+            confirmTitle: "Confirm Action",
+            confirmButton: "Yes",
+            cancelButton: "Cancel",
+            flowUrlNotFound: "Flow URL not found: {0}",
+            flowExecutionFailed: "Flow execution failed for record {0}: HTTP {1}",
+            networkError: "Network error for record {0}",
+            timelineRefreshWarning: "Timeline refresh failed",
+            notSupported: "Not supported",
+            onlySingleRecord: "This function only supports single records from form.",
+            configurationError: "Configuration Error",
+            success: "Success",
+            error: "Error",
+            errorWhenCallingFlow: "Error when calling flow: {0}",
+            errorWhenRetrievingVariable: "Error when retrieving environment variable: {0}",
+            flowCompletedSuccessfully: "Flow completed successfully!",
+            flowStartedSuccessfully: "Flow started successfully!",
+            sendingDataToFlow: "Sending data to flow..."
+        },
+        // Danish
+        "da": {
+            noRecordsSelected: "Vælg venligst mindst én post.",
+            envVarNotFound: "Miljøvariabel ikke fundet: {0}",
+            envVarRetrievalFailed: "Fejl ved hentning af miljøvariabel: {0}",
+            processing: "Behandler {0} post(er)",
+            completed: "Fuldført",
+            defaultSuccessMessage: "{0} post(er) behandlet succesfuldt",
+            recordsFailed: "{0} post(er) fejlede",
+            confirmTitle: "Bekræft handling",
+            confirmButton: "Ja",
+            cancelButton: "Annuller",
+            flowUrlNotFound: "Flow URL ikke fundet: {0}",
+            flowExecutionFailed: "Flow-udførelse fejlede for post {0}: HTTP {1}",
+            networkError: "Netværksfejl for post {0}",
+            timelineRefreshWarning: "Tidslinje-opdatering fejlede",
+            notSupported: "Ikke understøttet",
+            onlySingleRecord: "Denne funktion understøtter kun enkelte poster fra formular.",
+            configurationError: "Konfigurationsfejl",
+            success: "Succes",
+            error: "Fejl",
+            errorWhenCallingFlow: "Fejl ved kald til flow: {0}",
+            errorWhenRetrievingVariable: "Fejl ved hentning af miljøvariabel: {0}",
+            flowCompletedSuccessfully: "Flow afsluttet succesfuldt!",
+            flowStartedSuccessfully: "Flow startet succesfuldt!",
+            sendingDataToFlow: "Sender data til flow..."
+        },
+        // German
+        "de": {
+            noRecordsSelected: "Bitte wählen Sie mindestens einen Datensatz aus.",
+            envVarNotFound: "Umgebungsvariable nicht gefunden: {0}",
+            envVarRetrievalFailed: "Umgebungsvariable konnte nicht abgerufen werden: {0}",
+            processing: "Verarbeite {0} Datensatz/Datensätze",
+            completed: "Abgeschlossen",
+            defaultSuccessMessage: "{0} Datensatz/Datensätze erfolgreich verarbeitet",
+            recordsFailed: "{0} Datensatz/Datensätze fehlgeschlagen",
+            confirmTitle: "Aktion bestätigen",
+            confirmButton: "Ja",
+            cancelButton: "Abbrechen",
+            flowUrlNotFound: "Flow-URL nicht gefunden: {0}",
+            flowExecutionFailed: "Flow-Ausführung für Datensatz {0} fehlgeschlagen: HTTP {1}",
+            networkError: "Netzwerkfehler für Datensatz {0}",
+            timelineRefreshWarning: "Timeline-Aktualisierung fehlgeschlagen",
+            notSupported: "Nicht unterstützt",
+            onlySingleRecord: "Diese Funktion unterstützt nur einzelne Datensätze aus dem Formular.",
+            configurationError: "Konfigurationsfehler",
+            success: "Erfolg",
+            error: "Fehler",
+            errorWhenCallingFlow: "Fehler beim Aufrufen des Flows: {0}",
+            errorWhenRetrievingVariable: "Fehler beim Abrufen der Umgebungsvariable: {0}",
+            flowCompletedSuccessfully: "Flow erfolgreich abgeschlossen!",
+            flowStartedSuccessfully: "Flow erfolgreich gestartet!",
+            sendingDataToFlow: "Sende Daten an Flow..."
+        }
     },
+
+    // Current language setting - defaults to English
+    _currentLanguage: "en",
     
     /**
-     * Load strings from environment variable
-     * Caches result to avoid repeated API calls
+     * Set the language for localized strings
+     * @param {string} languageCode - Language code (e.g., "en", "da", "de")
      */
-    _loadStrings: function() {
-        var self = this;
-        
-        // Return cached strings if already loaded
-        if (self._stringsCache) {
-            return Promise.resolve(self._stringsCache);
+    setLanguage: function(languageCode) {
+        if (this.LOCALIZED_STRINGS[languageCode]) {
+            this._currentLanguage = languageCode;
+        } else {
+            console.warn("Language '" + languageCode + "' not found, using English");
+            this._currentLanguage = "en";
         }
-        
-        return self._getEnvironmentVariable("rup_JavaScriptFlowCallerStrings")
-            .then(function(jsonString) {
-                try {
-                    self._stringsCache = JSON.parse(jsonString);
-                    return self._stringsCache;
-                } catch (error) {
-                    console.warn("Failed to parse strings from environment variable, using defaults:", error);
-                    self._stringsCache = self._defaultStrings;
-                    return self._defaultStrings;
-                }
-            })
-            .catch(function(error) {
-                console.warn("Failed to load strings from environment variable, using defaults:", error);
-                self._stringsCache = self._defaultStrings;
-                return self._defaultStrings;
-            });
     },
     
     /**
@@ -77,7 +121,7 @@ Abakion.FlowCaller = {
      */
     _getString: function(key, values) {
         var self = this;
-        var strings = self._stringsCache || self._defaultStrings;
+        var strings = self.LOCALIZED_STRINGS[self._currentLanguage] || self.LOCALIZED_STRINGS["en"];
         var template = strings[key] || key;
         
         if (values) {
@@ -97,6 +141,37 @@ Abakion.FlowCaller = {
             return typeof values[index] !== 'undefined' ? values[index] : match;
         });
     },
+    
+    /**
+     * Initialize language based on user settings or browser
+     * Call this on page load if you want automatic language detection
+     */
+    initializeLanguage: function() {
+        // Try to get language from Dynamics 365 user settings
+        if (typeof Xrm !== 'undefined' && Xrm.Utility && Xrm.Utility.getGlobalContext) {
+            var userLcid = Xrm.Utility.getGlobalContext().userSettings.languageId;
+            
+            // Map LCID to language code (common ones)
+            var lcidMap = {
+                1033: "en", // English
+                1030: "da", // Danish
+                1031: "de", // German
+                1036: "fr", // French
+                1034: "es", // Spanish
+                // Add more as needed
+            };
+            
+            if (lcidMap[userLcid]) {
+                this.setLanguage(lcidMap[userLcid]);
+                return;
+            }
+        }
+        
+        // Fallback to browser language
+        var browserLang = (navigator.language || navigator.userLanguage).substring(0, 2);
+        this.setLanguage(browserLang);
+    },
+    
     /**
      * Calls flow with confirmation dialog - supports multiple records
      * @param {object} primaryControl - Form or grid context
@@ -108,95 +183,96 @@ Abakion.FlowCaller = {
      */
     callFlowWithConfirmation: function(primaryControl, selectedItemReferences, envVarName, confirmationText, successMessage, refreshTimeline) {
         var self = this;
-		debugger;
         
-        // Load strings first
-        self._loadStrings().then(function() {
-            var selectedRecords = [];
-            var entityName = "";
+        // Initialize language if not already done
+        if (!self._currentLanguage) {
+            self.initializeLanguage();
+        }
+        
+        var selectedRecords = [];
+        var entityName = "";
+        
+        // Check if we have selectedItemReferences (Command Designer)
+        if (selectedItemReferences && selectedItemReferences.length > 0) {
+            // Command Designer - use selectedItemReferences
+            selectedRecords = selectedItemReferences;
+            entityName = selectedItemReferences[0].TypeName || selectedItemReferences[0].etn || selectedItemReferences[0].entityType;
             
-            // Check if we have selectedItemReferences (Command Designer)
-            if (selectedItemReferences && selectedItemReferences.length > 0) {
-                // Command Designer - use selectedItemReferences
-                selectedRecords = selectedItemReferences;
-                entityName = selectedItemReferences[0].TypeName || selectedItemReferences[0].etn || selectedItemReferences[0].entityType;
-                
-            } else if (primaryControl.getGrid) {
-                // Ribbon Workbench - Grid context (view)
-                var grid = primaryControl.getGrid();
-                var rows = grid.getSelectedRows();
-                
-                if (rows.getLength() === 0) {
-                    Xrm.Navigation.openAlertDialog({
-                        text: self._getString("noRecordsSelected")
-                    });
-                    return;
-                }
-                
-                var allRows = rows.getAll();
-                for (var i = 0; i < allRows.length; i++) {
-                    selectedRecords.push({
-                        Id: allRows[i].getData().entity.getId(),
-                        TypeName: allRows[i].getData().entity.getEntityName()
-                    });
-                }
-                entityName = allRows[0].getData().entity.getEntityName();
-                
-            } else if (primaryControl.data && primaryControl.data.entity) {
-                // Form context (single record)
-                var recordId = primaryControl.data.entity.getId().replace(/[{}]/g, "");
-                entityName = primaryControl.data.entity.getEntityName();
-                
-                selectedRecords = [{
-                    Id: recordId,
-                    TypeName: entityName
-                }];
-            } else {
+        } else if (primaryControl.getGrid) {
+            // Ribbon Workbench - Grid context (view)
+            var grid = primaryControl.getGrid();
+            var rows = grid.getSelectedRows();
+            
+            if (rows.getLength() === 0) {
                 Xrm.Navigation.openAlertDialog({
                     text: self._getString("noRecordsSelected")
                 });
                 return;
             }
             
-            if (selectedRecords.length === 0) {
-                Xrm.Navigation.openAlertDialog({
-                    text: self._getString("noRecordsSelected")
+            var allRows = rows.getAll();
+            for (var i = 0; i < allRows.length; i++) {
+                selectedRecords.push({
+                    Id: allRows[i].getData().entity.getId(),
+                    TypeName: allRows[i].getData().entity.getEntityName()
                 });
-                return;
             }
+            entityName = allRows[0].getData().entity.getEntityName();
             
-            // Build confirmation text with count
-            var confirmText = confirmationText.replace("{0}", selectedRecords.length);
+        } else if (primaryControl.data && primaryControl.data.entity) {
+            // Form context (single record)
+            var recordId = primaryControl.data.entity.getId().replace(/[{}]/g, "");
+            entityName = primaryControl.data.entity.getEntityName();
             
-            // Show confirmation dialog
-            var confirmStrings = {
-                text: confirmText,
-                title: self._getString("confirmTitle"),
-                confirmButtonLabel: self._getString("confirmButton"),
-                cancelButtonLabel: self._getString("cancelButton")
-            };
-            
-            Xrm.Navigation.openConfirmDialog(confirmStrings).then(function(result) {
-                if (result.confirmed) {
-                    // Get flow URL from environment variable
-                    self._getEnvironmentVariable(envVarName).then(function(flowUrl) {
-                        if (!flowUrl) {
-                            Xrm.Navigation.openAlertDialog({
-                                text: self._getString("envVarNotFound", envVarName)
-                            });
-                            return;
-                        }
-                        
-                        // Process records
-                        self._processRecords(selectedRecords, entityName, flowUrl, primaryControl, successMessage, refreshTimeline);
-                        
-                    }).catch(function(error) {
-                        Xrm.Navigation.openAlertDialog({
-                            text: self._getString("envVarRetrievalFailed", error.message)
-                        });
-                    });
-                }
+            selectedRecords = [{
+                Id: recordId,
+                TypeName: entityName
+            }];
+        } else {
+            Xrm.Navigation.openAlertDialog({
+                text: self._getString("noRecordsSelected")
             });
+            return;
+        }
+        
+        if (selectedRecords.length === 0) {
+            Xrm.Navigation.openAlertDialog({
+                text: self._getString("noRecordsSelected")
+            });
+            return;
+        }
+        
+        // Build confirmation text with count
+        var confirmText = confirmationText.replace("{0}", selectedRecords.length);
+        
+        // Show confirmation dialog
+        var confirmStrings = {
+            text: confirmText,
+            title: self._getString("confirmTitle"),
+            confirmButtonLabel: self._getString("confirmButton"),
+            cancelButtonLabel: self._getString("cancelButton")
+        };
+        
+        Xrm.Navigation.openConfirmDialog(confirmStrings).then(function(result) {
+            if (result.confirmed) {
+                // Get flow URL from environment variable
+                self._getEnvironmentVariable(envVarName).then(function(flowUrl) {
+                    if (!flowUrl) {
+                        Xrm.Navigation.openAlertDialog({
+                            text: self._getString("envVarNotFound", envVarName)
+                        });
+                        return;
+                    }
+                    
+                    // Process records
+                    self._processRecords(selectedRecords, entityName, flowUrl, primaryControl, successMessage, refreshTimeline);
+                    
+                }).catch(function(error) {
+                    Xrm.Navigation.openAlertDialog({
+                        text: self._getString("envVarRetrievalFailed", error.message)
+                    });
+                });
+            }
         });
     },
     
@@ -219,6 +295,11 @@ Abakion.FlowCaller = {
         var self = this;
         var formContext = primaryControl;
         
+        // Initialize language if not already done
+        if (!self._currentLanguage) {
+            self.initializeLanguage();
+        }
+        
         // Validation - only form context
         if (primaryControl.getGrid) {
             Xrm.Navigation.openAlertDialog({
@@ -234,9 +315,9 @@ Abakion.FlowCaller = {
         // Show confirmation
         var confirmStrings = {
             text: confirmationText.replace("{0}", "1"),
-			title: self._getString("confirmTitle"),
-			confirmButtonLabel: self._getString("confirmButton"),
-			cancelButtonLabel: self._getString("cancelButton")
+            title: self._getString("confirmTitle"),
+            confirmButtonLabel: self._getString("confirmButton"),
+            cancelButtonLabel: self._getString("cancelButton")
         };
         
         Xrm.Navigation.openConfirmDialog(confirmStrings).then(function(result) {
@@ -369,7 +450,7 @@ Abakion.FlowCaller = {
             // Handle different record formats
             var recordId = record.Id || record.id || record.getId();
             
-            // Remove curly braces if present
+            // Remove curly braces if they exist
             if (recordId) {
                 recordId = recordId.toString().replace(/[{}]/g, "");
             }
@@ -479,12 +560,13 @@ Abakion.FlowCaller = {
  * Form (single): "Email created" → "Email created" (no {0})
  * Form (single): "Record updated successfully" → "Record updated successfully"
  * 
- * WITH CUSTOM FIELDS:
- * ==================
- * Abakion.FlowCaller.callFlowWithCustomFields(
- *     primaryControl,
- *     "Send order for approval?",
- *     "aba_OrderApprovalFlowUrl",
- *     ["aba_amount", "aba_customer", "aba_priority"]
- * );
+ * LANGUAGE CUSTOMIZATION:
+ * ========================
+ * To add a new language, modify the LOCALIZED_STRINGS constant at the top of this file.
+ * To set language programmatically:
+ * Abakion.FlowCaller.setLanguage("da"); // Danish
+ * Abakion.FlowCaller.setLanguage("de"); // German
+ * 
+ * The script will automatically detect the user's language from Dynamics 365 settings
+ * or browser language if available.
  */
