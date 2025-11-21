@@ -101,7 +101,9 @@ Abakion.FlowCaller = {
     },
 
     // Current language setting - defaults to English
-    _currentLanguage: "en",
+    // Uncomment this line to set the default language, instead of reading the users
+    // CRM localization settings
+    //_currentLanguage: "en",
     
     /**
      * Set the language for localized strings
@@ -269,7 +271,8 @@ Abakion.FlowCaller = {
                     
                 }).catch(function(error) {
                     Xrm.Navigation.openAlertDialog({
-                        text: self._getString("envVarRetrievalFailed", error.message)
+                        text: self._getString("envVarRetrievalFailed", error.message),
+						title: self._getString("error")
                     });
                 });
             }
@@ -424,7 +427,7 @@ Abakion.FlowCaller = {
                                    result.entities[0].defaultvalue;
                         resolve(value);
                     } else {
-                        reject(new Error("Environment variable not found: " + variableName));
+                        reject(new Error(self._getString("envVarNotFound", variableName)));
                     }
                 })
                 .catch(function(error) {
