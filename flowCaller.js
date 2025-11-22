@@ -404,6 +404,8 @@ Abakion.FlowCaller = {
      * PRIVATE: Get environment variable value
      */
     _getEnvironmentVariable: function(variableName) {
+        var self = this; // Store reference to Abakion.FlowCaller
+        
         return new Promise(function(resolve, reject) {
             var fetchXml = [
                 "<fetch top='1'>",
@@ -427,6 +429,10 @@ Abakion.FlowCaller = {
                                    result.entities[0].defaultvalue;
                         resolve(value);
                     } else {
+                        // Use localized error message
+                        if (!self._currentLanguage) {
+                            self.initializeLanguage();
+                        }
                         reject(new Error(self._getString("envVarNotFound", variableName)));
                     }
                 })
