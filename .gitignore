@@ -1,0 +1,16 @@
+# CSV output files from solution checker
+*.csv
+
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Token cache (contains sensitive auth tokens)
+.dataverse_checker_cache.json
+
+# IDE
+.vscode/
+.idea/
